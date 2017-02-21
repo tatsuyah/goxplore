@@ -41,9 +41,10 @@ func createList(label string, items []string) *termui.List {
 	list.Items = items
 	list.ItemFgColor = termui.ColorYellow
 	list.BorderLabel = label
-	list.Height = len(items) + 2
-	list.Width = 100
+	list.Height = len(items) * 3
+	list.Width = 80
 	list.Y = 0
+	list.Overflow = "wrap"
 
 	return list
 }
@@ -117,25 +118,26 @@ func (p *Page) Scrape() [][]string {
 	return p.Scraper()
 }
 
-func ScrapeTranding() [][]string {
-	url := getURL("daily")
+func getRepositories() []string {
+	url := getURL()
 	doc, _ := goquery.NewDocument(url)
-	selectorString := makeSelectorString("#explore-trending")
-	repositories := [][]string{}
+
+	selectorString := ".repo-list li"
+	repositories := []string{}
 
 	doc.Find(selectorString).Each(func(i int, s *goquery.Selection) {
-		repo := []string{}
-		s.Find(".repo-name").Each(func(_ int, s *goquery.Selection) {
+		repoInfo := ""
+		s.Find("div h3 a").Each(func(_ int, s *goquery.Selection) {
 			repositoryURL, _ := s.Attr("href")
 			repositoryURL = strings.Replace(repositoryURL, "/", "", 1)
-			repo = append(repo, repositoryURL)
+			repoInfo += repositoryURL
 		})
-		s.Find(".repo-description").Each(func(_ int, s *goquery.Selection) {
+		s.Find(".py-1 p").Each(func(_ int, s *goquery.Selection) {
 			repositoryDescription, _ := s.Html()
-			repo = append(repo, repositoryDescription)
+			repoInfo += repositoryDescription
 		})
 
-		repositories = append(repositories, repo)
+		repositories = append(repositories, repoInfo)
 	})
 
 	return repositories
@@ -155,19 +157,13 @@ func makeSelectorString(category string) string {
 	return selectorString
 }
 
-func getURL(span string) string {
-	return "https://github.com/explore?since=" + span
+func getURL() string {
+	return "https://github.com/trending"
 }
 
 func main() {
-	page := Page{
-		url:     getURL("daily"),
-		Scraper: ScrapeTranding,
-	}
-
-	repositories := page.Scrape()
-	flattenedArray := flattenArray(repositories)
-	formattedRepositories := formatOptions(flattenedArray)
+	repositoryArray := getRepositories()
+	formattedRepositories := formatOptions(repositoryArray)
 
 	var menu Menu
 	menu.init(formattedRepositories)
