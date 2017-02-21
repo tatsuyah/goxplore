@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"strconv"
 	"strings"
 
@@ -41,10 +42,10 @@ func createList(label string, items []string) *termui.List {
 	list.Items = items
 	list.ItemFgColor = termui.ColorYellow
 	list.BorderLabel = label
-	list.Height = len(items) * 3
-	list.Width = 80
+	list.Height = 12
+	list.Width = 100
 	list.Y = 0
-	list.Overflow = "wrap"
+	//list.Overflow = "wrap"
 
 	return list
 }
@@ -96,6 +97,7 @@ func setKeyEvents(options []string, ls *termui.List) {
 func openRepo(options []string, index int) {
 	elms := strings.Split(options[index], " ")
 	path := elms[1]
+	path = strings.TrimRight(path, "\n")
 	url := "https://github.com/" + path
 	open.Run(url)
 }
@@ -118,8 +120,7 @@ func (p *Page) Scrape() [][]string {
 	return p.Scraper()
 }
 
-func getRepositories() []string {
-	url := getURL()
+func getRepositories(url string) []string {
 	doc, _ := goquery.NewDocument(url)
 
 	selectorString := ".repo-list li"
@@ -130,11 +131,15 @@ func getRepositories() []string {
 		s.Find("div h3 a").Each(func(_ int, s *goquery.Selection) {
 			repositoryURL, _ := s.Attr("href")
 			repositoryURL = strings.Replace(repositoryURL, "/", "", 1)
+			repositoryURL = strings.TrimRight(repositoryURL, "\n")
+			repositoryURL = strings.TrimRight(repositoryURL, " ")
 			repoInfo += repositoryURL
 		})
 		s.Find(".py-1 p").Each(func(_ int, s *goquery.Selection) {
 			repositoryDescription, _ := s.Html()
-			repoInfo += repositoryDescription
+			repositoryDescription = strings.TrimLeft(repositoryDescription, "\n")
+			repositoryDescription = strings.TrimLeft(repositoryDescription, " ")
+			repoInfo += " " + repositoryDescription
 		})
 
 		repositories = append(repositories, repoInfo)
@@ -157,12 +162,25 @@ func makeSelectorString(category string) string {
 	return selectorString
 }
 
-func getURL() string {
-	return "https://github.com/trending"
+func getURL(language string) string {
+	path := ""
+	if language != "" {
+		path = "/" + language
+	} else {
+		path = ""
+	}
+	return "https://github.com/trending" + path
 }
 
 func main() {
-	repositoryArray := getRepositories()
+	var language string
+
+	flag.StringVar(&language, "language", "blank", "language flag")
+	flag.StringVar(&language, "l", "blank", "language flag")
+	flag.Parse()
+
+	url := getURL(language)
+	repositoryArray := getRepositories(url)
 	formattedRepositories := formatOptions(repositoryArray)
 
 	var menu Menu
